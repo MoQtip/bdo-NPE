@@ -1,0 +1,13 @@
+.vscode/
+backup/
+docs/
+__pycache__/
+output/
+venv/
+build/
+dist/
+*.spec
+*.rc
+*.res
+*.moqtip
+~*
