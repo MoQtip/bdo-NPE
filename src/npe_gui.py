@@ -3,18 +3,26 @@ import os
 import ctypes
 import json
 import webbrowser
+import logging
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLabel, QLineEdit, QTextEdit, QFileDialog, QDesktopWidget
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 import config
+from config import resource_path
+from config import setup_logging
 from data_loader import ExcelDataLoader
 from node_processor import NodeProcessor
 from results_visualizer import ResultsVisualizer
 
+# Set up logging
+setup_logging()
+
+logging.info('Starting the NodePathExplorerGUI application.')
+
 class NodePathExplorerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.title = 'BDO Node Path Explorer (v1.0.0)'
+        self.title = 'BDO Node Path Explorer (v1.1.0)'
         self.initUI()
         self.loadSettings()
 
@@ -23,7 +31,9 @@ class NodePathExplorerGUI(QMainWindow):
         self.setWindowTitle(self.title)
         self.setFixedSize(640, 480)
         self.centerWindow()
-        self.setWindowIcon(QIcon('../assets/app_icon.ico'))
+        self.setWindowIcon(QIcon(resource_path(r'assets\app_icon.ico')))
+        if '--log' in sys.argv:
+            logging.debug(f'Base Path to icon is: {resource_path(r"assets\app_icon.ico")}')
         self.centralWidget = QWidget(self)
         self.setCentralWidget(self.centralWidget)
         self.layout = QVBoxLayout()
@@ -32,7 +42,9 @@ class NodePathExplorerGUI(QMainWindow):
         self.excelFileLabel = QLabel("Excel File Path:")
         self.layout.addWidget(self.excelFileLabel)
         self.excelFilePathLineEdit = QLineEdit(self)
-        default_excel_path = os.path.abspath(config.EXCEL_FILE_PATH)
+        default_excel_path = resource_path(config.EXCEL_FILE_PATH)
+        if '--log' in sys.argv:
+            logging.debug(f'default_excel_path is: {default_excel_path}')
 
         self.excelFilePathLineEdit.setText(default_excel_path)
         self.layout.addWidget(self.excelFilePathLineEdit)
@@ -85,6 +97,8 @@ class NodePathExplorerGUI(QMainWindow):
     def processData(self):
         # Process data using the specified Excel file and Yield names, normalize and sort yield names
         excel_file_path = self.excelFilePathLineEdit.text()
+        if '--log' in sys.argv:
+            logging.debug(f'Excel File Path is: {excel_file_path}')
         yield_names = self.yieldNamesTextEdit.toPlainText().strip()
         if not yield_names:
             # Normalize and sort yield names from config if no GUI input
@@ -103,9 +117,11 @@ class NodePathExplorerGUI(QMainWindow):
             ResultsVisualizer.print_console_output(all_yield_results)
             html_output = ResultsVisualizer.generate_html_output(all_yield_results)
             ResultsVisualizer.save_and_open_html(html_output)
-            print("Data processing complete.")
+            if '--log' in sys.argv:
+                logging.debug("Data processing complete.")
         else:
-            print("Please select an Excel file and enter yield names.")
+            if '--log' in sys.argv:
+                logging.debug("Please select an Excel file and enter yield names.")
 
     def openResultsVisualization(self):
         # Open the results visualization in the default web browser
@@ -123,15 +139,24 @@ class NodePathExplorerGUI(QMainWindow):
             'excelFilePath': self.excelFilePathLineEdit.text(),
             'yieldNames': self.yieldNamesTextEdit.toPlainText()
         }
+        config_dir = os.path.dirname(config.CONFIG_FILE)
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+            if '--log' in sys.argv:
+                logging.info(f'Created directory for config file: {config_dir}')
         with open(config.CONFIG_FILE, 'w') as config_file:
             json.dump(settings, config_file)
+            if '--log' in sys.argv:
+                logging.info(f'Settings saved to {config.CONFIG_FILE}.')
 
     def loadSettings(self):
         # Load settings from a JSON file or set default values
+        if '--log' in sys.argv:
+            logging.debug(f'Loading settings from {config.CONFIG_FILE}.')
         try:
             with open(config.CONFIG_FILE, 'r') as config_file:
                 settings = json.load(config_file)
-                self.excelFilePathLineEdit.setText(settings.get('excelFilePath', config.EXCEL_FILE_PATH))
+                self.excelFilePathLineEdit.setText(settings.get(resource_path('excelFilePath'), config.EXCEL_FILE_PATH))
                 self.yieldNamesTextEdit.setText(settings.get('yieldNames', ''))
 
         except FileNotFoundError:
@@ -139,7 +164,7 @@ class NodePathExplorerGUI(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon('../assets/app_icon.ico'))
+    app.setWindowIcon(QIcon(resource_path(r'assets\app_icon.ico')))
     myappid = 'com.moqtip.NodePathExplorer.1'  # Unique identifier for the application
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     ex = NodePathExplorerGUI()
